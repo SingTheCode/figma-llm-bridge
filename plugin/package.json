@@ -1,0 +1,12 @@
+{
+    "name": "figma-llm-bridge-plugin",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "build": "esbuild src/code.ts --bundle --outfile=dist/code.js --target=es2015 && cp src/ui.html dist/ui.html && cp manifest.json dist/manifest.json"
+    },
+    "devDependencies": {
+        "@figma/plugin-typings": "^1.100.0",
+        "esbuild": "^0.20.0"
+    }
+}

@@ -1,0 +1,18 @@
+{
+    "name": "figma-llm-bridge",
+    "version": "0.1.0",
+    "private": true,
+    "description": "Bridge between LLM (via MCP) and Figma Plugin API through WebSocket",
+    "workspaces": ["plugin", "server"],
+    "scripts": {
+        "build": "npm run build --workspaces",
+        "build:plugin": "npm run build -w plugin",
+        "build:server": "npm run build -w server",
+        "dev:server": "npm run dev -w server",
+        "dev:hub": "npm run dev:hub -w server",
+        "start:hub": "npm run start:hub -w server"
+    },
+    "engines": {
+        "node": ">=18"
+    }
+}

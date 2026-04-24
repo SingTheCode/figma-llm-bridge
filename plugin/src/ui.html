@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LLM Bridge</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, system-ui, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        padding: 16px;
+        background: #1e1e1e;
+        color: #f3f3f3;
+      }
+
+      .status {
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: #2b2b2b;
+        border: 1px solid #3a3a3a;
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      .status strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="status">
+      <strong id="statusText">Disconnected</strong>
+      WebSocket bridge ready.
+    </div>
+
+    <script>
+      (function () {
+        const socketUrl = 'ws://localhost:3055';
+        const reconnectDelay = 5000;
+        const maxQueueSize = 100;
+        const statusText = document.getElementById('statusText');
+
+        let socket = null;
+        let reconnectTimer = null;
+        let manuallyClosed = false;
+        const outboundQueue = [];
+
+        function setStatus(text) {
+          statusText.textContent = text;
+        }
+
+        function flushQueue() {
+          if (!socket || socket.readyState !== WebSocket.OPEN) {
+            return;
+          }
+
+          while (outboundQueue.length > 0) {
+            socket.send(outboundQueue.shift());
+          }
+        }
+
+        function scheduleReconnect() {
+          if (manuallyClosed || reconnectTimer) {
+            return;
+          }
+
+          setStatus('Reconnecting in 5s...');
+          reconnectTimer = setTimeout(function () {
+            reconnectTimer = null;
+            connect();
+          }, reconnectDelay);
+        }
+
+        function connect() {
+          if (manuallyClosed) {
+            return;
+          }
+
+          setStatus('Connecting...');
+
+          try {
+            socket = new WebSocket(socketUrl);
+          } catch (error) {
+            setStatus('Connection failed');
+            scheduleReconnect();
+            return;
+          }
+
+          socket.onopen = function () {
+            setStatus('Connected');
+            flushQueue();
+          };
+
+          socket.onmessage = function (event) {
+            try {
+              const parsed = JSON.parse(event.data);
+              parent.postMessage({ pluginMessage: parsed }, '*');
+            } catch (error) {
+              setStatus('Invalid JSON from server');
+            }
+          };
+
+          socket.onclose = function () {
+            setStatus('Disconnected');
+            scheduleReconnect();
+          };
+
+          socket.onerror = function () {
+            setStatus('Socket error');
+          };
+        }
+
+        window.onmessage = function (event) {
+          const message = event.data && event.data.pluginMessage;
+
+          if (!message) {
+            return;
+          }
+
+          const payload = JSON.stringify(message);
+
+          if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(payload);
+            return;
+          }
+
+          if (outboundQueue.length >= maxQueueSize) {
+            outboundQueue.shift();
+          }
+          outboundQueue.push(payload);
+        };
+
+        connect();
+      })();
+    </script>
+  </body>
+</html>
